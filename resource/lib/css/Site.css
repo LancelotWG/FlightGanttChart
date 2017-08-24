@@ -1,0 +1,121 @@
+﻿body {
+    padding-bottom: 20px;
+}
+
+/* Set padding to keep content from hitting the edges */
+.body-content {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Set width on the form input elements since they're 100% wide by default */
+input,
+select,
+textarea {
+    max-width: 280px;
+}
+
+/* styles for validation helpers */
+.field-validation-error {
+    color: #b94a48;
+}
+
+.field-validation-valid {
+    display: none;
+}
+
+input.input-validation-error {
+    border: 1px solid #b94a48;
+}
+
+input[type="checkbox"].input-validation-error {
+    border: 0 none;
+}
+
+.validation-summary-errors {
+    color: #b94a48;
+}
+
+.validation-summary-valid {
+    display: none;
+}
+
+.userinput {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+span {
+}
+    
+.dsc{
+    font-size:small;
+    color:#009966; 
+    margin-left:3px;
+}
+
+@media print {
+    .userinput {
+        border: none;
+        border-radius: 0;
+    }
+}
+
+div .con {
+    background: rgba(65, 255, 0, 0.50) none repeat scroll 0 0 !important;
+    filter: Alpha(opacity=50);
+    border-radius: 6px;
+    padding-left: 6px;
+}
+
+.con p {
+    position: relative;
+    color: darkblue;
+}
+
+div .filter {
+    position: fixed;
+    left: 1px;
+    top: 80px;
+}
+
+table.layout {
+    width: 100%;
+}
+
+table.layout tr.layout {
+    background-color: transparent;
+}
+
+.animated.slideUp {
+    -webkit-transform: translateY(-70px);
+    -moz-transform: translateY(-70px);
+    -ms-transform: translateY(-70px);
+    -o-transform: translateY(-70px);
+    transform: translateY(-70px);
+}
+
+.animated.slideDown {
+    -webkit-transform: translateY(0);
+    -moz-transform: translateY(0);
+    -ms-transform: translateY(0);
+    -o-transform: translateY(0);
+    transform: translateY(0);
+}
+
+.animated {
+    top: 0;
+    -webkit-transition: all .3s;
+    -moz-transition: all .3s;
+    transition: all .3s;
+}
+
+.header--fixed {
+    width: 100%;
+    height: 50px;
+    position: fixed;
+    z-index: 9999;
+}
+
+
+
