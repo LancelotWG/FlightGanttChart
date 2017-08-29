@@ -3,7 +3,7 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8"/>
     <title>航班数据甘特图</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="lib/css/bootstrap.css">
@@ -13,7 +13,8 @@
     <link rel="stylesheet" href="lib/css/angular-gantt-plugins.min.css">
     <link rel="stylesheet" href="lib/css/angular-ui-tree.min.css">
     <link rel="stylesheet" href="lib/css/Site.css">
-    <link href="favicon.ico" rel="shortcut icon" type="image/x-icon" />
+    <link rel="stylesheet" href="lib/css/jquery-ui-autocomplete.css">
+    <link href="favicon.ico" rel="shortcut icon" type="image/x-icon"/>
     <script src="lib/jquery-2.2.0.js"></script>
     <script src="lib/Highcharts/js/highcharts.js"></script>
     <script src="lib/Highcharts/js/highcharts-more.js"></script>
@@ -22,7 +23,7 @@
 
     <script src="lib/moment.js"></script>
     <script src="lib/angular-moment.min.js"></script>
-
+    <script src="lib/jquery-ui-autocomplete.js"></script>
 
     <script src="lib/ElementQueries.js"></script>
     <script src="lib/ResizeSensor.js"></script>
@@ -40,6 +41,7 @@
             $scope.aircrafts = [];
             $scope.tail = null;
             $scope.tails = [];
+            $scope.tailGroup = {};
             $scope.aircraftGroup = [];
             $scope.tempAircraftGroup = [];
             $scope.flightGroup = [];
@@ -49,6 +51,157 @@
             $scope.tasks = [];
             $scope.grain = 'ba';
             var reader = null;
+
+
+            (function ($) {
+                $.widget("custom.combobox", {
+                    _create: function () {
+                        this.wrapper = $("<span>")
+                            .addClass("custom-combobox")
+                            .insertAfter(this.element);
+
+                        this.element.hide();
+                        this._createAutocomplete();
+                        this._createShowAllButton();
+                    },
+
+                    _createAutocomplete: function () {
+                        var selected = this.element.children(":selected"),
+                            value = selected.val() ? selected.text() : "";
+
+                        this.input = $("<input>")
+                            .appendTo(this.wrapper)
+                            .val(value)
+                            .attr("title", "")
+                            .addClass("custom-combobox-input ui-widget ui-widget-content ui-state-default ui-corner-left")
+                            .autocomplete({
+                                delay: 0,
+                                minLength: 0,
+                                source: $.proxy(this, "_source"),
+                                select: function (event, ui) {
+                                    console.log("select:" + ui.item.value);
+                                    if ($scope.tails.length != 0) {
+                                        $scope.data = showData();
+                                        $scope.data = _.filter($scope.data, (item) => {
+                                            if (item.id === ui.item.value || item.id === ("a_" + ui.item.value) || item.id === ("b_" + ui.item.value)) {
+                                                return true;
+                                            } else {
+                                                if (ui.item.value === "All") {
+                                                    return true;
+                                                }
+                                                return false;
+                                            }
+                                        });
+                                    }
+                                }
+                            })
+                            .tooltip({
+                                tooltipClass: "ui-state-highlight"
+                            });
+
+                        this._on(this.input, {
+                            autocompleteselect: function (event, ui) {
+                                ui.item.option.selected = true;
+                                this._trigger("select", event, {
+                                    item: ui.item.option
+                                });
+                            },
+
+                            autocompletechange: "_removeIfInvalid"
+                        });
+                    },
+
+                    _createShowAllButton: function () {
+                        var input = this.input,
+                            wasOpen = false;
+
+                        $("<a>")
+                            .attr("tabIndex", -1)
+                            .attr("title", "Show All Items")
+                            .tooltip()
+                            .appendTo(this.wrapper)
+                            .button({
+                                icons: {
+                                    primary: "ui-icon-triangle-1-s"
+                                },
+                                text: false
+                            })
+                            .removeClass("ui-corner-all")
+                            .addClass("custom-combobox-toggle ui-corner-right")
+                            .mousedown(function () {
+                                wasOpen = input.autocomplete("widget").is(":visible");
+                            })
+                            .click(function () {
+                                input.focus();
+
+                                // 如果已经可见则关闭
+                                if (wasOpen) {
+                                    return;
+                                }
+
+                                // 传递空字符串作为搜索的值，显示所有的结果
+                                input.autocomplete("search", "");
+                            });
+                    },
+
+                    _source: function (request, response) {
+                        var matcher = new RegExp($.ui.autocomplete.escapeRegex(request.term), "i");
+                        response(this.element.children("option").map(function () {
+                            var text = $(this).text();
+                            if (this.value && ( !request.term || matcher.test(text) ))
+                                return {
+                                    label: text,
+                                    value: text,
+                                    option: this
+                                };
+                        }));
+                    },
+
+                    _removeIfInvalid: function (event, ui) {
+
+                        // 选择一项，不执行其他动作
+                        if (ui.item) {
+                            return;
+                        }
+
+                        // 搜索一个匹配（不区分大小写）
+                        var value = this.input.val(),
+                            valueLowerCase = value.toLowerCase(),
+                            valid = false;
+                        this.element.children("option").each(function () {
+                            if ($(this).text().toLowerCase() === valueLowerCase) {
+                                this.selected = valid = true;
+                                return false;
+                            }
+                        });
+
+                        // 找到一个匹配，不执行其他动作
+                        if (valid) {
+                            return;
+                        }
+
+                        // 移除无效的值
+                        this.input
+                            .val("")
+                            .attr("title", value + " 没有匹配任何项")
+                            .tooltip("open");
+                        this.element.val("");
+                        this._delay(function () {
+                            this.input.tooltip("close").attr("title", "");
+                        }, 2500);
+                        this.input.data("ui-autocomplete").term = "";
+                    },
+
+                    _destroy: function () {
+                        this.wrapper.remove();
+                        this.element.show();
+                    }
+                });
+            })(jQuery);
+
+            $(function () {
+                $("#flightTail").combobox();
+            });
 
 
             if (!document.getElementById('inputData').files) {
@@ -66,14 +219,14 @@
                     return;
                 }
                 reader = new FileReader();
-                reader.onload = function(e) {
-                    $interval(loadJSON(JSON.parse(this.result)),500,1);
+                reader.onload = function (e) {
+                    $interval(loadJSON(JSON.parse(this.result)), 500, 1);
                     alert("数据加载完成！");
                 };
                 reader.readAsText(files[0]);
             }
 
-            function loadJSON(data){
+            function loadJSON(data) {
                 $scope.aircraftGroup = _.groupBy(_.filter(data, 'flightNumber'), 'fleetID');
                 $scope.tempAircraftGroup = _.groupBy(_.filter(data, 'flightNumber'), 'swapFleetID');
                 $scope.aircrafts = _.reduce(_.keys($scope.aircraftGroup), (result, flight) => {
@@ -83,7 +236,7 @@
                 initAircraftGroup();
             }
 
-            function deepCopy(o,c){
+            function deepCopy(o, c) {
                 c.departureTime = o.departureTime;
                 c.swapTailNumber = o.swapTailNumber;
                 c.arrival = o.arrival;
@@ -100,10 +253,10 @@
 
             function initAircraftGroup() {
                 _.forEach($scope.tempAircraftGroup, (array, key) => {
-                    if(key !== ""){
+                    if (key !== "") {
                         var newArray = [];
-                        _.forEach(array,(value, index) => {
-                            if(value.fleetID !== key){
+                        _.forEach(array, (value, index) => {
+                            if (value.fleetID !== key) {
                                 var c = {};
                                 deepCopy(value, c);
                                 c.overstate = true;
@@ -116,21 +269,37 @@
             }
 
             $scope.$watch('aircraft', (newVal, oldVal) => {
-                if($scope.aircraftGroup.length != 0){
-                    if($scope.aircraftGroup[newVal].length >= 200){
-                        if(confirm("加载数据量过大，建议进行更多的筛选，是否继续加载？")){
-                            $scope.tasks = $scope.aircraftGroup[newVal];
-                        }else{
-
+                if ($scope.aircraftGroup.length != 0) {
+                    $scope.tailGroup = _.groupBy(_.filter($scope.aircraftGroup[newVal], (item) => {
+                        if (item.fleetID === newVal) {
+                            return true;
+                        } else {
+                            return false;
                         }
-                    }else {
+                    }), 'tailNumber');
+                    $scope.tails.push("All");
+                    var obj = document.getElementById('flightTail');
+                    obj.options.length = 0;
+                    obj.options.add(new Option("All", "All"));
+                    $scope.tails = _.reduce(_.keys($scope.tailGroup), (result, tail) => {
+                        if (tail !== "") {
+                            obj.options.add(new Option(tail, tail));
+                            result.push(tail);
+                        }
+                        return result;
+                    }, []);
+                    if ($scope.aircraftGroup[newVal].length >= 200) {
+                        if (confirm("加载数据量过大，建议进行更多的筛选，是否继续加载？")) {
+                            $scope.tasks = $scope.aircraftGroup[newVal];
+                            $scope.data = showData();
+                        } else {
+                            $scope.tasks = $scope.aircraftGroup[newVal];
+                        }
+                    } else {
                         $scope.tasks = $scope.aircraftGroup[newVal];
+                        $scope.data = showData();
                     }
                 }
-            });
-
-            $scope.$watch('tasks', (newVal, oldVal) => {
-                $scope.data = showData();
             });
 
             $scope.$watch('grain', (newVal, oldVal) => {
@@ -145,12 +314,12 @@
                         var tailGrp = _.groupBy($scope.tasks, 'tailNumber');
                         var result = _.reduce(_.keys(tailGrp), (result, tailNumber) => {
                             var isAdd = false;
-                            _.forEach(tailGrp[tailNumber],(value, index) => {
-                                if(value.overstate !== true){
+                            _.forEach(tailGrp[tailNumber], (value, index) => {
+                                if (value.overstate !== true) {
                                     isAdd = true;
                                 }
                             });
-                            if(isAdd){
+                            if (isAdd) {
                                 result.push({
                                     name: tailNumber,
                                     id: tailNumber
@@ -163,37 +332,37 @@
                                     addResultTask(ts, item);
                                     return ts;
                                 }, []);
-                                if($scope.grain === "ba" || $scope.grain === "b"){
+                                if ($scope.grain === "ba" || $scope.grain === "b") {
                                     result.push({
-                                        id:"b_" + tailNumber,
+                                        id: "b_" + tailNumber,
                                         name: "Before",
                                         parent: tailNumber,
-                                        tasks:tasks
+                                        tasks: tasks
                                     });
                                 }
-                                if($scope.grain === "ba" || $scope.grain === "a"){
+                                if ($scope.grain === "ba" || $scope.grain === "a") {
                                     result.push({
-                                        id:"a_" + tailNumber,
+                                        id: "a_" + tailNumber,
                                         name: "After",
                                         parent: tailNumber,
-                                        tasks:resultTask
+                                        tasks: resultTask
                                     });
                                 }
                             }
                             return result;
                         }, []);
                         var tailGrpA = _.groupBy($scope.tasks, 'swapTailNumber');
-                        _.forEach(tailGrpA,(array, key) => {
+                        _.forEach(tailGrpA, (array, key) => {
                             var tasks = [];
-                            if(key !== ""){
-                                _.forEach(array, (value,index) => {
-                                    if(value.swapFleetID === $scope.aircraft){
+                            if (key !== "") {
+                                _.forEach(array, (value, index) => {
+                                    if (value.swapFleetID === $scope.aircraft) {
                                         addSwapResultTask(tasks, value);
                                     }
                                 });
                             }
-                            _.forEach(result,(value,index) => {
-                                if(value.id === ("a_" + key)){
+                            _.forEach(result, (value, index) => {
+                                if (value.id === ("a_" + key)) {
                                     value.tasks = value.tasks.concat(tasks);
                                 }
                             });
@@ -208,39 +377,39 @@
             function addTask(tasks, op) {
                 var swapTailNumber = null;
                 var swapFleetNumber = null;
-                if (op.overstate === true){
+                if (op.overstate === true) {
                     return;
                 }
                 var status = op.status;
                 var color = null;
-                if(status == "normal"){
+                if (status == "normal") {
                     color = "RGBA(153,204,104,0.6)";
-                }else if(status == "cancel"){
+                } else if (status == "cancel") {
                     color = "RGBA(31, 31, 31,0.6)";
-                }else if(status == "swap"){
+                } else if (status == "swap") {
                     swapTailNumber = op.swapTailNumber;
                     swapFleetNumber = op.swapFleetID;
                     color = "RGBA(255, 51, 255,0.6)";
-                }else if(status == "delay"){
+                } else if (status == "delay") {
                     color = "RGBA(255, 51, 0,0.6)";
                 }
                 tasks.push({
                     name: op.flightNumber,
-                    id: 't_' + op.flightNumber + '@' + op.tailNumber + '@'+ op.departureTime ,
+                    id: 't_' + op.flightNumber + '@' + op.tailNumber + '@' + op.departureTime,
                     from: moment(op.departureTime),
                     to: moment(op.arrivalTime),
                     color: color,
-                    tailNumber:op.tailNumber,
-                    aircraft:op.fleetID,
-                    swapTailNumber:swapTailNumber,
-                    swapAircraft:swapFleetNumber,
-                    departure:op.departure,
-                    arrival:op.arrival,
-                    status:status
+                    tailNumber: op.tailNumber,
+                    aircraft: op.fleetID,
+                    swapTailNumber: swapTailNumber,
+                    swapAircraft: swapFleetNumber,
+                    departure: op.departure,
+                    arrival: op.arrival,
+                    status: status
                 });
             }
 
-            function addSwapResultTask(tasks, op){
+            function addSwapResultTask(tasks, op) {
                 var status = op.status;
                 var from = null;
                 var to = null;
@@ -249,10 +418,10 @@
                 var fleetID = null;
                 var originTailNumber = null;
                 var originFleetID = null;
-                if(op.execDepartureTime !== ""){
+                if (op.execDepartureTime !== "") {
                     from = moment(op.execDepartureTime);
                     to = moment(op.execArrivalTime);
-                }else{
+                } else {
                     from = moment(op.departureTime);
                     to = moment(op.arrivalTime);
                 }
@@ -263,17 +432,17 @@
                 originFleetID = op.fleetID;
                 tasks.push({
                     name: op.flightNumber,
-                    id: 'r_' + op.flightNumber + '@' + op.tailNumber + '@'+ op.departureTime ,
+                    id: 'r_' + op.flightNumber + '@' + op.tailNumber + '@' + op.departureTime,
                     from: from,
                     to: to,
                     color: color,
-                    tailNumber:tailNumber,
-                    aircraft:fleetID,
-                    originTailNumber:originTailNumber,
-                    originAircraft:originFleetID,
-                    departure:op.departure,
-                    arrival:op.arrival,
-                    status:status
+                    tailNumber: tailNumber,
+                    aircraft: fleetID,
+                    originTailNumber: originTailNumber,
+                    originAircraft: originFleetID,
+                    departure: op.departure,
+                    arrival: op.arrival,
+                    status: status
                 });
             }
 
@@ -286,22 +455,22 @@
                 var fleetID = null;
                 var originTailNumber = null;
                 var originFleetID = null;
-                if(status == "normal"){
+                if (status == "normal") {
                     from = moment(op.departureTime);
                     to = moment(op.arrivalTime);
                     color = "RGBA(153,204,104,0.6)";
                     tailNumber = op.tailNumber;
                     fleetID = op.fleetID;
-                }else if(status == "cancel"){
+                } else if (status == "cancel") {
                     return;
-                }else if(status == "swap"){
-                    if(op.swapTailNumber !== op.tailNumber){
+                } else if (status == "swap") {
+                    if (op.swapTailNumber !== op.tailNumber) {
                         return;
                     }
-                    if(op.execDepartureTime !== ""){
+                    if (op.execDepartureTime !== "") {
                         from = moment(op.execDepartureTime);
                         to = moment(op.execArrivalTime);
-                    }else{
+                    } else {
                         from = moment(op.departureTime);
                         to = moment(op.arrivalTime);
                     }
@@ -310,7 +479,7 @@
                     fleetID = op.swapFleetID;
                     originTailNumber = op.tailNumber;
                     originFleetID = op.fleetID;
-                }else if(status == "delay"){
+                } else if (status == "delay") {
                     from = moment(op.execDepartureTime);
                     to = moment(op.execArrivalTime);
                     color = "RGBA(255, 51, 0,0.6)";
@@ -319,17 +488,17 @@
                 }
                 tasks.push({
                     name: op.flightNumber,
-                    id: 'r_' + op.flightNumber + '@' + op.tailNumber + '@'+ op.departureTime ,
+                    id: 'r_' + op.flightNumber + '@' + op.tailNumber + '@' + op.departureTime,
                     from: from,
                     to: to,
                     color: color,
-                    tailNumber:tailNumber,
-                    originTailNumber:originTailNumber,
-                    originAircraft:originFleetID,
-                    aircraft:fleetID,
-                    departure:op.departure,
-                    arrival:op.arrival,
-                    status:status
+                    tailNumber: tailNumber,
+                    originTailNumber: originTailNumber,
+                    originAircraft: originFleetID,
+                    aircraft: fleetID,
+                    departure: op.departure,
+                    arrival: op.arrival,
+                    status: status
                 });
             }
 
@@ -344,8 +513,12 @@
                 daily: false,
                 zoom: 8,
                 treeTableColumns: ['from', 'to'],
-                columnsHeaders: { 'model.name': 'Name', 'from': 'From', 'to': 'To' },
-                columnsClasses: { 'model.name': 'gantt-column-name', 'from': 'gantt-column-from', 'to': 'gantt-column-to' },
+                columnsHeaders: {'model.name': 'Name', 'from': 'From', 'to': 'To'},
+                columnsClasses: {
+                    'model.name': 'gantt-column-name',
+                    'from': 'gantt-column-from',
+                    'to': 'gantt-column-to'
+                },
                 columnsFormatters: {
                     'from': function (from) {
                         return from !== undefined ? from.format('ll') : undefined;
@@ -355,12 +528,12 @@
                     }
                 },
                 treeHeaderContent: '<i class="fa fa-align-justify"></i> {{getHeader()}}',
-                tooltipContent:"<center><span style='color: mediumvioletred;'>{{'航班:'+ task.model.name}}</span>&nbsp&nbsp&nbsp<span style='color: {{task.model.color}};'>{{'状态:'+ task.model.status}}</span></center></br>" +
+                tooltipContent: "<center><span style='color: mediumvioletred;'>{{'航班:'+ task.model.name}}</span>&nbsp&nbsp&nbsp<span style='color: {{task.model.color}};'>{{'状态:'+ task.model.status}}</span></center></br>" +
                 "<center>{{'飞机:'+ task.model.tailNumber}}&nbsp&nbsp&nbsp&nbsp&nbsp" + "{{'型号:'+ task.model.aircraft}}</center>" +
                 "<center>{{(task.model.status == 'swap') &&  task.model.swapTailNumber ? ('更换至飞机：' + task.model.swapTailNumber + '&nbsp&nbsp&nbsp' + '更换至型号：' + task.model.swapAircraft):''}}</center>" +
                 "<center>{{(task.model.status == 'swap') &&  task.model.originTailNumber ? ('原飞机：' + task.model.originTailNumber + '&nbsp&nbsp&nbsp' + '原型号：' + task.model.originAircraft):''}}</center>" +
-                "<center>{{'出发地:'+ task.model.departure}}&nbsp&nbsp&nbsp&nbsp&nbsp" +  "{{'目的地:'+ task.model.arrival}}</center>" +
-                "<center><small style='color:lawngreen'>"+
+                "<center>{{'出发地:'+ task.model.departure}}&nbsp&nbsp&nbsp&nbsp&nbsp" + "{{'目的地:'+ task.model.arrival}}</center>" +
+                "<center><small style='color:lawngreen'>" +
                 '{{task.isMilestone() === true && getFromLabel() || getFromLabel() + \' --- \' + getToLabel()}}' +
                 '</small></center>',
                 columnsHeaderContents: {
@@ -372,12 +545,8 @@
                 currentDate: 'none',
                 currentDateValue: new Date(),
                 groupDisplayMode: 'Disabled',
-                timeFrames: {
-
-                },
-                dateFrames: {
-
-                },
+                timeFrames: {},
+                dateFrames: {},
                 timeFramesWorkingMode: 'hidden',
                 timeFramesNonWorkingMode: 'visible',
                 columnMagnet: '15 minutes',
@@ -386,13 +555,15 @@
                     conflictChecker: true
                 },
                 corner: {
-                    headersLabels: function (key) { return key.charAt(0).toUpperCase() + key.slice(1); },
+                    headersLabels: function (key) {
+                        return key.charAt(0).toUpperCase() + key.slice(1);
+                    },
                     headersLabelsTemplates: '{{getLabel(header)}} <i class="fa fa-calendar"></i>'
                 },
                 targetDataAddRowIndex: undefined,
-                taskContent:"<small style='color:green;'>"+
+                taskContent: "<small style='color:green;'>" +
                 '{{task.model.departure}}' +
-                '</small>&nbsp&nbsp&nbsp' + "<span style='color:whitesmoke'>{{task.model.name}}</span>" + "&nbsp&nbsp&nbsp<small style='color:darkblue'>"+
+                '</small>&nbsp&nbsp&nbsp' + "<span style='color:whitesmoke'>{{task.model.name}}</span>" + "&nbsp&nbsp&nbsp<small style='color:darkblue'>" +
                 '{{task.model.arrival}}' +
                 '</small>',
                 api: function (api) {
@@ -403,47 +574,77 @@
     </script>
     <style>
         div.gantt-side {
-            min-width:58px
+            min-width: 58px
+        }
+
+        .custom-combobox {
+            position: relative;
+            display: inline-block;
+        }
+
+        .custom-combobox-toggle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            margin-left: -1px;
+            padding: 0;
+            /* 支持： IE7 */
+            *height: 1.7em;
+            *top: 0.1em;
+        }
+
+        .custom-combobox-input {
+            margin: 0;
+            padding: 0.3em;
         }
     </style>
 </head>
-<body ng-app = "app" ng-controller="ctrl" class="container-fluid body-content">
+<body ng-app="app" ng-controller="ctrl" class="container-fluid body-content">
 <div class="row">
     <div class="col-sm-12">
         <center><h1>航班数据甘特图</h1></center>
     </div>
 </div>
-<div class="row clearfix">
+<div style="margin-top: 20px;" class="row clearfix">
     <div class="col-sm-12 column">
         <div class="form-group col-sm-3 column form-horizontal">
             <label for="txtPart" class="col-sm-5 control-label">Json数据文件</label>
             <div class="col-sm-7">
-                <input id="inputData"  type="file" name="img" />
+                <input id="inputData" type="file" name="img"/>
             </div>
         </div>
-        <div class="form-group col-sm-1 column form-horizontal">
-        </div>
-        <div class="form-group col-sm-2 column form-horizontal">
-            <label for="txtPart" class="col-sm-4 control-label">型号</label>
-            <div class="col-sm-8">
-                <select class="form-control" ng-model="aircraft" ng-options="fleetID for fleetID in aircrafts track by fleetID"></select>
+        <div class="form-group col-sm-3 column form-vertical">
+            <div class="form-group col-sm-12 column form-horizontal">
+                <label for="txtPart" class="col-sm-4 control-label">型号</label>
+                <div class="col-sm-8">
+                    <select class="form-control" ng-model="aircraft"
+                            ng-options="fleetID for fleetID in aircrafts track by fleetID"></select>
+                </div>
+            </div>
+            <div class="form-group col-sm-12 column form-horizontal">
+                <label for="txtPart" class="col-sm-4 control-label">飞机</label>
+                <div class="col-sm-8">
+                    <select id="flightTail" class="form-control"></select>
+                </div>
             </div>
         </div>
         <div class="form-group col-sm-3 column form-horizontal">
             <label for="txtPart" class="col-sm-3 control-label">缩放</label>
             <div class="col-sm-9">
                 <div class="col-sm-7">
-                    <select class="form-control" ng-model="options.scale" ng-options="s.val as s.dsp for s in [{val:'hour', dsp:'小时'}, {val:'day', dsp:'天'}]"></select>
+                    <select class="form-control" ng-model="options.scale"
+                            ng-options="s.val as s.dsp for s in [{val:'hour', dsp:'小时'}, {val:'day', dsp:'天'}]"></select>
                 </div>
                 <div class="col-sm-5">
-                    <input type="number" class="form-control" ng-model="options.zoom" />
+                    <input type="number" class="form-control" ng-model="options.zoom"/>
                 </div>
             </div>
         </div>
         <div class="form-group col-sm-3 column form-horizontal">
             <label for="txtPart" class="col-sm-3 control-label">结果集</label>
             <div class="col-sm-9">
-                <select class="form-control" ng-model="grain" ng-options="s.val as s.dsp for s in [{val: 'ba', dsp: 'Before&After'}, {val:'a', dsp: 'After'}, {val:'b', dsp: 'Before'}]"></select>
+                <select class="form-control" ng-model="grain"
+                        ng-options="s.val as s.dsp for s in [{val: 'ba', dsp: 'Before&After'}, {val:'a', dsp: 'After'}, {val:'b', dsp: 'Before'}]"></select>
             </div>
         </div>
     </div>
@@ -472,7 +673,8 @@
                      api="options.api"
                      column-magnet="options.columnMagnet">
                     <gantt-tree header-content="options.treeHeaderContent"></gantt-tree>
-                    <gantt-corner headers-labels="options.corner.headersLabels" headers-labels-templates="options.corner.headersLabelsTemplates"></gantt-corner>
+                    <gantt-corner headers-labels="options.corner.headersLabels"
+                                  headers-labels-templates="options.corner.headersLabelsTemplates"></gantt-corner>
                     <gantt-groups
                             enabled="options.groupDisplayMode === 'group' || options.groupDisplayMode === 'overview' || options.groupDisplayMode === 'promote'"
                             display=options.groupDisplayMode></gantt-groups>

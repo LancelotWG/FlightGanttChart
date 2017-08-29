@@ -70,9 +70,9 @@ public class GanttChart {
                 //此为无法获取系统默认浏览器
             }
         }*/
-		File html = new File("./resource/FlightGanttChart.html");
+		File html = new File("resource/FlightGanttChart.html");
 		
-		String str = "cmd /c start " + html.getAbsolutePath();  
+		String str = "cmd /c start \"\" \"" + html.getAbsolutePath() + "\"";  
         try {  
             Runtime.getRuntime().exec(str);  
         } catch (IOException e) {  
